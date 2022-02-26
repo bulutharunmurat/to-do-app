@@ -31,6 +31,45 @@ const (
 
 func main() {
 
+	err := connectDatabase()
+	err = dropTable("to_do", err)
+	err = createTable(err)
+
+	err = insertData("task1", true, err)
+	err = insertData("task2", false, err)
+	err = insertData("task3", false, err)
+
+	http.HandleFunc("/", handler)
+	http.HandleFunc("/view/", viewHandler)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+
+}
+
+func insertData(taskname string, is_done bool, err error) error {
+	// Insert some data into table.
+	sql_statement := "INSERT INTO to_do (task, is_done) VALUES ($1, $2);"
+	_, err = db.Exec(sql_statement, taskname, is_done)
+	checkError(err)
+	fmt.Println("Inserted row succesfully")
+	return err
+}
+
+func createTable(err error) error {
+	// Create table.
+	_, err = db.Exec("CREATE TABLE to_do (id serial PRIMARY KEY, task VARCHAR(50), is_done VARCHAR(50));")
+	checkError(err)
+	fmt.Println("Finished creating table")
+	return err
+}
+
+func dropTable(table_name string, err error) error {
+	// Drop previous table of same name if one exists.
+	_, err = db.Exec("DROP TABLE IF EXISTS " + table_name + ";")
+	fmt.Println("Finished dropping table (if existed)")
+	return err
+}
+
+func connectDatabase() error {
 	// Capture connection properties.
 	var connectionString = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", HOST, PORT, USER, PASSWORD, DATABASE)
 	fmt.Println(connectionString)
@@ -42,30 +81,7 @@ func main() {
 	pingErr := db.Ping()
 	checkError(pingErr)
 	fmt.Println("Connected!")
-
-	// Drop previous table of same name if one exists.
-	_, err = db.Exec("DROP TABLE IF EXISTS to_do;")
-	fmt.Println("Finished dropping table (if existed)")
-
-	// Create table.
-	_, err = db.Exec("CREATE TABLE to_do (id serial PRIMARY KEY, task VARCHAR(50), is_done VARCHAR(50));")
-	checkError(err)
-	fmt.Println("Finished creating table")
-
-	// Insert some data into table.
-	sql_statement := "INSERT INTO to_do (task, is_done) VALUES ($1, $2);"
-	_, err = db.Exec(sql_statement, "task1", true)
-	checkError(err)
-	_, err = db.Exec(sql_statement, "task2", false)
-	checkError(err)
-	_, err = db.Exec(sql_statement, "task3", false)
-	checkError(err)
-	fmt.Println("Inserted 3 rows of data")
-
-	http.HandleFunc("/", handler)
-	http.HandleFunc("/view/", viewHandler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
-
+	return err
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
